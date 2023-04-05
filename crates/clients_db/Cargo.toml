@@ -1,0 +1,17 @@
+[package]
+name = "fo_clients_db"
+version = "0.1.0"
+authors = ["qthree <qthree3@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+fo_defines = { git = "https://github.com/fonline-rust/legacy.git" }
+fo_defines_fo4rp = { git = "https://github.com/fonline-rust/legacy.git" }
+
+fo_save_format = { git = "https://github.com/fonline-roleplay/fo_save_format.git" }
+arrayvec = "0.5"
+itertools = "0.9"
+
+
+#[target.'cfg(windows)'.dependencies]
+#tnf_common = { path = "../common", features = ["engine_types"] }
