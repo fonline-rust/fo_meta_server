@@ -279,7 +279,7 @@ fn handle_message_async(
                         .trunk(cr_id, None, CharTrunk::default())
                         .get_bare_branch_or_default("authkey", &default[..], |val| val.len() == 12)
                         .map_err(BridgeError::Versioned)?;
-                    let authkey = match authkey {
+                    let auth_bytes = match authkey {
                         Some(authkey) => {
                             let slice = authkey.as_ref();
                             let bytes: [u8; 12] =
@@ -288,7 +288,7 @@ fn handle_message_async(
                         }
                         None => default,
                     };
-                    let authkey: [u32; 3] = unsafe { std::mem::transmute(authkey) };
+                    let authkey: [u32; 3] = bytemuck::cast(auth_bytes);
                     Ok(Some(authkey))
                 })
                 .map_ok(move |authkey| {
