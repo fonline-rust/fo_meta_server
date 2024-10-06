@@ -3,25 +3,11 @@ pub use serenity::{
     model::guild::{Guild, Role},
 };
 use serenity::{
-    all::{standard::Configuration, ActivityData, CreateMessage, GuildId}, cache::Cache, client::Client, framework::standard::{
-        macros::{command, group, hook},
-        CommandError, CommandResult, DispatchError, StandardFramework,
-    }, gateway::ShardManager, http::Http, model::prelude::{Message, UserId}, prelude::{Context, EventHandler, Mutex, TypeMapKey}
-};
-use serenity::{
-    model::{guild::Member, prelude::Channel},
-    prelude::GatewayIntents,
+    all::{ActivityData, GuildId}, cache::Cache, client::Client, gateway::ShardManager, http::Http,
+    model::prelude::{UserId, Member, GatewayIntents},
 };
 use std::{collections::HashMap, sync::Arc};
 use let_clone::let_clone;
-
-#[group]
-#[commands(private)]
-struct General;
-
-struct Handler;
-
-impl EventHandler for Handler {}
 
 #[derive(Clone)]
 pub struct MrHandy {
@@ -68,7 +54,7 @@ impl MrHandy {
                 let channel = guild
                     .channels
                     .values()
-                    .find(|ch| &ch.name == &channel)
+                    .find(|ch| ch.name == channel)
                     .ok_or_else(|| Error::ChannelNotFound(channel))?;
                 Ok(channel.id)
             })
@@ -160,34 +146,8 @@ impl Members {
     }
 }
 
-#[hook]
-async fn dispatch_error_hook(
-    _context: &Context,
-    _msg: &Message,
-    error: DispatchError,
-    command_name: &str,
-) {
-    eprintln!("DispatchError: {error:?}, command: {command_name}")
-}
-
-#[hook]
-async fn after_hook(_: &Context, _: &Message, cmd_name: &str, error: Result<(), CommandError>) {
-    if let Err(why) = error {
-        println!("Error in {}: {:?}", cmd_name, why);
-    }
-}
-
 pub async fn init(token: &str, main_guild_id: u64) -> (MrHandy, Client) {
-    let framework = StandardFramework::new()
-        //.configure(|c| c.prefix("~")) // set the bot's prefix to "~"
-        .on_dispatch_error(dispatch_error_hook)
-        .group(&GENERAL_GROUP)
-        .after(after_hook);
-    framework
-        .configure(Configuration::new().prefix("~"));
     let client = Client::builder(token, GatewayIntents::all())
-        .event_handler(Handler)
-        .framework(framework)
         .await
         .expect("Error creating client");
     let_clone!(client.cache, client.http, client.shard_manager);
@@ -200,11 +160,4 @@ pub async fn init(token: &str, main_guild_id: u64) -> (MrHandy, Client) {
         },
         client,
     )
-}
-
-#[command]
-async fn private(ctx: &Context, msg: &Message) -> CommandResult {
-    let builder = CreateMessage::new().content(":eyes:");
-    msg.author.dm(ctx, builder).await?;
-    Ok(())
 }
