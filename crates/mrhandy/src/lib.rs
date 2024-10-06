@@ -156,9 +156,15 @@ impl Members {
 }
 
 pub async fn init(token: &str, main_guild_id: u64) -> (MrHandy, Client) {
-    let client = Client::builder(token, GatewayIntents::all())
+    let mut builder = Client::builder(token, GatewayIntents::all());
+    if let Some(proxy) = std::env::var("WSS_PROXY").ok().or_else(|| std::env::var("ALL_PROXY").ok()){
+        builder = builder.ws_proxy(proxy);
+    }
+
+    let client = builder
         .await
         .expect("Error creating client");
+
     let_clone!(client.cache, client.http, client.shard_manager);
     (
         MrHandy {

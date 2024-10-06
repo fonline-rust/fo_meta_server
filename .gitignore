@@ -1,5 +1,4 @@
 **/target
-**/Cargo.lock
 config.toml
 web/db
 web/static/*.css

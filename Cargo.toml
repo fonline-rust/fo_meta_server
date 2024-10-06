@@ -82,8 +82,7 @@ reqwest.workspace = true
 #tokio-rustls = "= 0.12.1"
 
 [workspace.dependencies]
-#serenity = { version = "0.12", default-features = false, features = ["model"]}
-serenity = { path = "/home/qthree/rust_git/serenity", default-features = false, features = ["model", "gateway"]}
+serenity = { git = "https://github.com/qthree/serenity.git", branch = "ws-proxy", default-features = false, features = ["model", "gateway"]}
 reqwest = { version = "0.12", default-features = false }
 parking_lot = "0.12"
 futures = "0.3"
