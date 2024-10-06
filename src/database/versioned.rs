@@ -1,13 +1,15 @@
-use super::{
-    tools::{increment, slice_to_u32},
-    ArcSlice, Root,
-};
-use actix_web::error::BlockingError;
-use arrayvec::ArrayVec;
-use sled::IVec;
 use std::{
     fmt::Write,
     ops::{Bound, RangeBounds},
+};
+
+use actix_web::error::BlockingError;
+use arrayvec::ArrayVec;
+use sled::IVec;
+
+use super::{
+    tools::{increment, slice_to_u32},
+    ArcSlice, Root,
 };
 
 #[derive(Debug)]
@@ -96,7 +98,7 @@ pub fn get_value<T, R: RangeBounds<u32>, F: Fn(IVec) -> Result<T, IVec>>(
             eprintln!("Strange version: {:?}", key);
             continue;
         }
-        let value = parse(value).map_err(|ivec| VersionedError::ValueParse(ivec))?;
+        let value = parse(value).map_err(VersionedError::ValueParse)?;
         return Ok(Some((key, value)));
     }
     Ok(None)
@@ -144,12 +146,12 @@ where
     root.tree().insert(key, value).map_err(VersionedError::Sled)
 }
 
-pub fn new_leaf<'a, V, const SIZE: usize>(
+pub fn new_leaf<V, const SIZE: usize>(
     root: &Root,
     trunk: &str,
     id: u32,
     counter: &str,
-    branch_values: [(&'a str, V); SIZE],
+    branch_values: [(&str, V); SIZE],
 ) -> Result<u32, VersionedError>
 where
     IVec: From<V>,

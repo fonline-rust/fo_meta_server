@@ -1,11 +1,12 @@
-use super::AppState;
-use crate::{config::Host, templates};
 use actix_web::{web, HttpRequest, HttpResponse};
 use fo_clients_db::CritterInfo;
 use fo_defines::CritterParam;
 use fo_defines_fo4rp::param::Param;
 use futures::FutureExt;
 use serde::Serialize;
+
+use super::AppState;
+use crate::{config::Host, templates};
 
 // TODO: Rewrite
 pub async fn gm_stats(
@@ -77,7 +78,7 @@ struct SkillField {
     tagged: bool,
 }
 
-const STAT_TITLES: [&'static str; 10] = [
+const STAT_TITLES: [&str; 10] = [
     "Гадко",
     "Плохо",
     "Низко",
@@ -89,9 +90,9 @@ const STAT_TITLES: [&'static str; 10] = [
     "Круто",
     "Герой!",
 ];
-const STAT_NAMES: [&'static str; 7] = ["СЛ", "ВC", "ВН", "ОБ", "ИН", "ЛВ", "УД"];
+const STAT_NAMES: [&str; 7] = ["СЛ", "ВC", "ВН", "ОБ", "ИН", "ЛВ", "УД"];
 
-const SKILL_NAMES: [&'static str; 18] = [
+const SKILL_NAMES: [&str; 18] = [
     "Легкое оружие",
     "Тяжелое оружие",
     "Энергооружие",
@@ -141,7 +142,7 @@ impl<'a> Stats<'a> {
                 value: sk.max(0).min(999),
                 tagged: tagged
                     .iter()
-                    .any(|tag| *tag as i32 == Param::SK_SMALL_GUNS as i32 + index as i32),
+                    .any(|tag| { *tag } == Param::SK_SMALL_GUNS as i32 + index as i32),
             })
             .collect();
         let level = cr.param(Param::ST_LEVEL);

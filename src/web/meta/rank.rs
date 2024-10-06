@@ -1,8 +1,10 @@
-use super::*;
+use std::sync::Arc;
+
 use actix_session::SessionExt;
 use actix_web::web::Data;
 use mrhandy::FixedString;
-use std::sync::Arc;
+
+use super::*;
 
 pub async fn get_ranks(data: Arc<AppState>, user_id: u64) -> Result<Vec<Rank>, &'static str> {
     data.mrhandy
@@ -52,7 +54,7 @@ pub enum Rank {
     Admin,
 }
 
-fn role_to_rank<'b>(config: &'b crate::config::Roles) -> impl 'b + Fn(&mrhandy::Role) -> Rank {
+fn role_to_rank(config: &crate::config::Roles) -> impl '_ + Fn(&mrhandy::Role) -> Rank {
     move |role| {
         if role.name == config.player {
             Rank::Player

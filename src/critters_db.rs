@@ -1,6 +1,6 @@
-use arc_swap::ArcSwapAny;
 use std::{io, path::PathBuf, sync::Arc};
 
+use arc_swap::ArcSwapAny;
 use fo_clients_db::{ClientsDb, CritterInfo};
 
 type InnerCritter = Arc<CritterInfo>;
@@ -18,11 +18,13 @@ impl CrittersDb {
             path,
         }
     }
+
     pub fn list_clients(&self) -> InnerClients {
         let clients = Arc::new(ClientsDb::new(&self.path));
         self.clients.store(Arc::clone(&clients));
         clients
     }
+
     pub fn client_info(&self, name: &str) -> io::Result<InnerCritter> {
         self.clients.load().client_info(name)
     }

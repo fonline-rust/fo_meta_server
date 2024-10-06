@@ -1,5 +1,6 @@
-use serde::{Deserialize, Serialize};
 use std::ffi::CString;
+
+use serde::{Deserialize, Serialize};
 
 pub const HANDSHAKE: u16 = 0xBABA;
 pub const VERSION: u16 = 6;
@@ -8,7 +9,7 @@ pub enum GameServerToMetaServer {
     PlayerConnected(u32),
     PlayerAuth(u32),
     Status(ServerStatus),
-    DiscordSendMessage{channel: String, text: String},
+    DiscordSendMessage { channel: String, text: String },
 }
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub enum DayTime {
@@ -31,8 +32,7 @@ impl DayTime {
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
 #[repr(C)]
-pub struct ServerStatistics
-{
+pub struct ServerStatistics {
     pub server_start_tick: u32,
     pub uptime: u32,
     pub bytes_send: i64,

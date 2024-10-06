@@ -1,4 +1,7 @@
-use self::restrict::restrict;
+use std::time::Duration;
+#[allow(unused_imports)]
+use std::{collections::BTreeMap, sync::Arc};
+
 use actix_service::Service;
 use actix_web::{
     body::MessageBody,
@@ -6,20 +9,16 @@ use actix_web::{
     error::InternalError,
     middleware, web, App, HttpRequest, HttpResponse, HttpServer,
 };
+#[cfg(feature = "fo_data")]
+use fo_data::FoData;
 use futures::{
     future::{FutureExt, TryFutureExt},
     Future,
 };
-use std::time::Duration;
 use tokio::sync::Mutex;
 
+use self::restrict::restrict;
 use crate::{bridge, config, critters_db::CrittersDb, database::SledDb};
-
-#[allow(unused_imports)]
-use std::{collections::BTreeMap, sync::Arc};
-
-#[cfg(feature = "fo_data")]
-use fo_data::FoData;
 
 mod avatar;
 mod char_action;
@@ -34,7 +33,7 @@ mod data;
 #[cfg(feature = "map_viewer")]
 mod map_viewer;
 
-const STATIC_PATH: &'static str = "./static/";
+const STATIC_PATH: &str = "./static/";
 
 async fn index(
     _req: HttpRequest,
@@ -43,7 +42,7 @@ async fn index(
 ) -> actix_web::Result<HttpResponse> {
     let body = match meta::get_user_id(&session) {
         Some(user_id) => {
-            let (name_string, max_rank) = match meta::get_user_record(&*data, user_id).await {
+            let (name_string, max_rank) = match meta::get_user_record(&data, user_id).await {
                 Ok(record) => (
                     match &record.nick {
                         Some(nick) => format!(r#"{} ({})"#, record.name, nick),
@@ -54,7 +53,7 @@ async fn index(
                 Err(err) => (
                     {
                         eprintln!("Index page error: {}", err);
-                        format!(r#"<red>error</red>"#)
+                        r#"<red>error</red>"#.to_string()
                     },
                     None,
                 ),
@@ -81,7 +80,7 @@ async fn index(
                 name_string, menu
             )
         }
-        None => format!(r#"<a href="/meta/login">Login</a>"#),
+        None => r#"<a href="/meta/login">Login</a>"#.to_string(),
     };
     Ok(HttpResponse::Ok()
         .content_type("text/html; charset=utf-8")
@@ -156,29 +155,30 @@ impl AppDefinition {
             #[cfg(feature = "fo_data")]
             fo_data: None,
             #[cfg(feature = "fo_proto_format")]
-            items: None
+            items: None,
         }
     }
+
     #[cfg(feature = "fo_data")]
     pub fn with_data(mut self, data: FoData) -> Self {
         self.fo_data = Some(data);
         self
     }
+
     #[cfg(feature = "fo_proto_format")]
     pub fn with_items(mut self, items: FoItems) -> Self {
         self.items = Some(items);
         self
     }
+
     pub fn build(self) -> AppState {
         AppState::new(self)
     }
 }
 
 impl AppState {
-    pub fn new(
-        def: AppDefinition,
-    ) -> Self {
-        let AppDefinition{config, db, ..} = def;
+    pub fn new(def: AppDefinition) -> Self {
+        let AppDefinition { config, db, .. } = def;
 
         let critters_db = CrittersDb::new(config.paths.save_clients.clone());
 
@@ -214,10 +214,12 @@ impl AppState {
             server_status: Mutex::new(bridge::Status::new()),
         }
     }
+
     #[cfg(feature = "fo_data")]
     pub fn fo_data(&self) -> &FoData {
         self.fo_data.as_ref().unwrap()
     }
+
     #[cfg(feature = "fo_proto_format")]
     pub fn fo_items(&self) -> &FoItems {
         self.items.as_ref().unwrap()

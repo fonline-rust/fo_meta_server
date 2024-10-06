@@ -1,11 +1,5 @@
 use std::io::Cursor;
 
-use crate::{
-    bridge,
-    database::{CharTrunk, Leaf, Root, VersionedError},
-    templates,
-    utils::blocking,
-};
 use actix_web::{error::BlockingError, web, HttpResponse};
 use arrayvec::ArrayVec;
 use futures::{
@@ -13,6 +7,13 @@ use futures::{
     Future, FutureExt, TryFutureExt,
 };
 use serde::{Deserialize, Serialize};
+
+use crate::{
+    bridge,
+    database::{CharTrunk, Leaf, Root, VersionedError},
+    templates,
+    utils::blocking,
+};
 
 // size of square image in pixels, 128 means 128x128
 const IMAGE_SIZE: u32 = 128;
@@ -105,7 +106,7 @@ pub fn upload(
     }
 
     let data_len = payload.len() - PREFIX_LEN;
-    if data_len < MIN_LEN || data_len > MAX_LEN {
+    if !(MIN_LEN..=MAX_LEN).contains(&data_len) {
         return Either::Left(fut_err(AvatarUploadError::DataLength(data_len)));
     }
 
@@ -127,7 +128,7 @@ fn save_image(root: &Root, char_id: u32, data: &[u8]) -> Result<Leaf<()>, Avatar
 
     let instant = std::time::Instant::now();
     let decoded =
-        base64::decode_config(&data, base64::STANDARD).map_err(AvatarUploadError::Base64)?;
+        base64::decode_config(data, base64::STANDARD).map_err(AvatarUploadError::Base64)?;
     println!("Decoded in {:?}", instant.elapsed());
     let instant2 = std::time::Instant::now();
     let image = image::load_from_memory_with_format(&decoded, ImageFormat::Png)

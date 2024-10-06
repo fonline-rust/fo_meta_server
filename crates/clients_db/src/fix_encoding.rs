@@ -29,8 +29,7 @@ fn is_ascii(string: &OsStr) -> bool {
 
 #[cfg(windows)]
 fn from_ascii(string: &OsStr) -> Option<String> {
-    use std::convert::TryInto;
-    use std::os::windows::ffi::OsStrExt;
+    use std::{convert::TryInto, os::windows::ffi::OsStrExt};
     //let mut vec = Vec::with_capacity(string.len()*2);
     let mut new_string = String::with_capacity(string.len() * 2);
     for wide in string.encode_wide() {
@@ -88,8 +87,7 @@ fn from_utfish_ascii(string: &str) -> Option<String> {
 
 #[cfg(not(windows))]
 fn from_ascii(string: &OsStr) -> Option<String> {
-    use std::convert::TryInto;
-    use std::os::unix::ffi::OsStrExt;
+    use std::{convert::TryInto, os::unix::ffi::OsStrExt};
 
     let mut new_string = String::with_capacity(string.len() * 2);
     for &code in string.as_bytes() {

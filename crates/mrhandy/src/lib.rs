@@ -1,13 +1,18 @@
+use std::{collections::HashMap, sync::Arc};
+
+use let_clone::let_clone;
 pub use serenity::{
     self,
     model::guild::{Guild, Role},
 };
 use serenity::{
-    all::{ActivityData, GuildId}, cache::Cache, gateway::ShardManager, http::Http,
-    model::prelude::{GatewayIntents, Member}, Client,
+    all::{ActivityData, GuildId},
+    cache::Cache,
+    gateway::ShardManager,
+    http::Http,
+    model::prelude::{GatewayIntents, Member},
+    Client,
 };
-use std::{collections::HashMap, sync::Arc};
-use let_clone::let_clone;
 
 pub type FixedString = small_fixed_array::FixedString<u8>;
 
@@ -43,10 +48,19 @@ impl MrHandy {
     pub async fn clone_members(&self) -> Option<Members> {
         self.with_guild(move |guild| {
             guild.map(|guild| Members {
-                members: guild.members.iter().map(|member| (member.user.id.into(), MemberInfo{
-                    nick: member.nick.clone(),
-                    user_name: member.user.name.clone(),
-                })).collect(),
+                members: guild
+                    .members
+                    .iter()
+                    .map(|member| {
+                        (
+                            member.user.id.into(),
+                            MemberInfo {
+                                nick: member.nick.clone(),
+                                user_name: member.user.name.clone(),
+                            },
+                        )
+                    })
+                    .collect(),
             })
         })
         .await
@@ -84,6 +98,7 @@ impl MrHandy {
         let user = &member.user;
         (user.name.clone(), member.nick.clone())
     }
+
     pub async fn edit_nickname(&self, new_nickname: Option<String>) -> Result<(), serenity::Error> {
         //let shards = self.shard_manager.lock().await;
         self.http
@@ -92,6 +107,7 @@ impl MrHandy {
         //TODO: return local Error
         //.map_err(Error::Serenity)
     }
+
     pub async fn set_activity(&self, condition: Condition) -> bool {
         use serenity::model::user::OnlineStatus;
 
@@ -114,7 +130,8 @@ impl MrHandy {
         runners
             .values()
             .inspect(|runner| {
-                runner.runner_tx
+                runner
+                    .runner_tx
                     .set_presence(Some(activity.clone()), status);
             })
             .count()
@@ -157,13 +174,14 @@ impl Members {
 
 pub async fn init(token: &str, main_guild_id: u64) -> (MrHandy, Client) {
     let mut builder = Client::builder(token, GatewayIntents::all());
-    if let Some(proxy) = std::env::var("WSS_PROXY").ok().or_else(|| std::env::var("ALL_PROXY").ok()){
+    if let Some(proxy) = std::env::var("WSS_PROXY")
+        .ok()
+        .or_else(|| std::env::var("ALL_PROXY").ok())
+    {
         builder = builder.ws_proxy(proxy);
     }
 
-    let client = builder
-        .await
-        .expect("Error creating client");
+    let client = builder.await.expect("Error creating client");
 
     let_clone!(client.cache, client.http, client.shard_manager);
     (

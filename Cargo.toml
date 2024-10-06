@@ -92,7 +92,7 @@ small-fixed-array = "0.4"
 
 [workspace]
 members = [
-    "bin/meta_basic", #"bin/meta_map_viewer"
+    "bin/meta_basic", "crates/clients_db", "crates/mrhandy", "crates/protocol", #"bin/meta_map_viewer"
 ]
 
 [profile.release]

@@ -6,8 +6,9 @@ use std::{
     time::SystemTime,
 };
 
-use crate::{not_found, CritterInfo, InnerCritter};
 use fo_save_format::ClientSaveData;
+
+use crate::{not_found, CritterInfo, InnerCritter};
 
 #[derive(Debug)]
 pub struct ClientRecord {
@@ -24,6 +25,7 @@ impl ClientRecord {
             info: None,
         }
     }
+
     pub fn update_info(&mut self, path: PathBuf, name: String) -> io::Result<()> {
         //let pathbuf = self.file_path(path);
         self.modified = path.metadata().and_then(|md| md.modified()).ok();
@@ -34,11 +36,13 @@ impl ClientRecord {
         self.info = Some(Arc::new(critter_info));
         Ok(())
     }
+
     pub fn info(&self) -> io::Result<InnerCritter> {
         //self.update_info(name)?;
         let info = self.info.as_ref().ok_or_else(not_found)?;
         Ok(Arc::clone(info))
     }
+
     pub fn rename_file(&mut self, path: PathBuf, name: String) -> io::Result<()> {
         let from = self.file_path(path.clone());
         let mut to = path;
@@ -48,6 +52,7 @@ impl ClientRecord {
         self.filename = OsString::from(name).into_boxed_os_str();
         Ok(())
     }
+
     pub fn file_path(&self, mut pathbuf: PathBuf) -> PathBuf {
         pathbuf.push(&*self.filename);
         pathbuf.set_extension("client");

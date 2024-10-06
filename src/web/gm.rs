@@ -1,14 +1,16 @@
+use std::{borrow::Cow, net::Ipv4Addr, time::Duration};
+
+use fo_clients_db::{fix_encoding::os_str_debug, ClientRecord};
+use fo_defines::CritterParam;
+use fo_defines_fo4rp::{fos, param::Param};
+use serde::Serialize;
+
 use super::{web, AppState, HttpResponse};
 use crate::{
     config::Host,
     database::{ownership::get_ownership, Root},
     templates,
 };
-use fo_clients_db::{fix_encoding::os_str_debug, ClientRecord};
-use fo_defines::CritterParam;
-use fo_defines_fo4rp::{fos, param::Param};
-use serde::Serialize;
-use std::{borrow::Cow, net::Ipv4Addr, time::Duration};
 
 pub async fn clients(data: web::Data<AppState>) -> actix_web::Result<HttpResponse> {
     let mrhandy = data.mrhandy.as_ref().expect("Discord config");
@@ -23,7 +25,7 @@ pub async fn clients(data: web::Data<AppState>) -> actix_web::Result<HttpRespons
         list.render(&data.config.host)
     })
     .await?
-    .map_err(|err| super::internal_error(err))?;
+    .map_err(super::internal_error)?;
 
     Ok(HttpResponse::Ok().content_type("text/html").body(res))
 }
@@ -54,7 +56,7 @@ struct ClientRowInfo<'a> {
     ip: &'a [Ipv4Addr],
 }
 
-const GAMEMODS: [&'static str; fos::GAME_MAX as usize] =
+const GAMEMODS: [&str; fos::GAME_MAX as usize] =
     ["START", "ADVENTURE", "SURVIVAL", "ARCADE", "TEST"];
 
 fn get_name<'a>(
@@ -109,7 +111,7 @@ impl<'a> ClientsList<'a> {
                     });
                     ClientRow {
                         info,
-                        name: &name,
+                        name,
                         file: os_str_debug(&record.filename),
                         last_seen: record
                             .modified
@@ -121,6 +123,7 @@ impl<'a> ClientsList<'a> {
                 .collect(),
         }
     }
+
     fn render(&self, host: &Host) -> Result<String, templates::TemplatesError> {
         templates::render(
             "gm_clients.html",

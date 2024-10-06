@@ -6,7 +6,7 @@ pub fn get_ownership(root: &Root, char_id: u32) -> Result<Option<u64>, Versioned
         .get_bare_branch("owner_id");
     match result {
         Ok(owner) => {
-            let user_id = slice_to_u64(&*owner);
+            let user_id = slice_to_u64(&owner);
             if user_id.is_none() {
                 eprintln!("Invalid owner, char_id: {}, bytes: {:?}", char_id, &*owner);
             }

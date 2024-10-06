@@ -1,7 +1,8 @@
-use super::{web, AppState, HttpResponse};
-use crate::{templates, utils::blocking};
 use actix_web::error::BlockingError;
 use serde::Serialize;
+
+use super::{web, AppState, HttpResponse};
+use crate::{templates, utils::blocking};
 
 #[derive(Debug, Serialize)]
 struct SpriteMap<'a> {

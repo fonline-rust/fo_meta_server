@@ -1,4 +1,3 @@
-use crate::web::{internal_error, restrict::Restrict, AppState};
 use actix_session::Session;
 use actix_web::{
     error::InternalError,
@@ -8,6 +7,8 @@ use actix_web::{
 use futures::{Future, TryFutureExt};
 use oauth2::{AuthorizationCode, CsrfToken, Scope, TokenResponse};
 use serde::Deserialize;
+
+use crate::web::{internal_error, restrict::Restrict, AppState};
 
 const DISCORD_CSRF_COOKIE_NAME: &str = "csrf_discord";
 const DISCORD_USER_ID_COOKIE_NAME: &str = "user_id_discord";
@@ -22,7 +23,7 @@ pub use ownership::restrict_ownership;
 
 pub use self::{
     auth::auth,
-    rank::{extract_member, get_ranks, get_user_record, Rank},
+    rank::{extract_member, get_user_record, Rank},
 };
 
 fn bad_request(text: &'static str) -> impl Fn() -> InternalError<&'static str> {

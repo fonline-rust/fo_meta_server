@@ -1,14 +1,14 @@
-use crate::{
-    database::{ownership, CharTrunk, Root, VersionedError},
-    utils::blocking,
-    web::AppState,
-};
+use std::{convert::TryInto, ffi::CStr, sync::Arc};
+
 use actix_codec::{Decoder, Encoder, Framed};
 use actix_rt::net::TcpStream;
 pub use actix_server::Server;
 use actix_service::fn_service;
 use actix_web::error::BlockingError;
 use bytes::BytesMut;
+pub use fo_meta_protocol::{
+    DayTime, GameServerToMetaServer as MsgIn, MetaServerToGameServer as MsgOut, ServerStatus,
+};
 use futures::{
     channel::mpsc::{channel, Sender, TrySendError},
     future, Future, StreamExt, TryFutureExt, TryStreamExt,
@@ -16,10 +16,11 @@ use futures::{
 use mrhandy::{Condition, ConditionColor};
 use parking_lot::RwLock;
 use serde::Serialize;
-use std::{convert::TryInto, ffi::CStr, sync::Arc};
 
-pub use fo_meta_protocol::{
-    DayTime, GameServerToMetaServer as MsgIn, ServerStatus, MetaServerToGameServer as MsgOut,
+use crate::{
+    database::{ownership, CharTrunk, Root, VersionedError},
+    utils::blocking,
+    web::AppState,
 };
 pub type MsgOutSender = Sender<MsgOut>;
 //pub type MsgOutSendError = SendError<MsgOut>;
@@ -82,12 +83,14 @@ impl StatusDisplay {
             //emoji: self.condition_emoji(),
         }
     }
+
     fn condition_name(&self) -> String {
         crate::templates::render("status.html", self, Default::default()).unwrap_or_else(|err| {
             eprintln!("StatusDisplay render error:\n{}\n{:?}", err, self);
             "<STATUS ERROR>".into()
         })
     }
+
     fn condition_color(&self) -> ConditionColor {
         match self.kind {
             StatusKind::Online => ConditionColor::Green,
@@ -124,6 +127,12 @@ pub struct Status {
     //new: Option<(ServerStatus, Instant)>,
     new: Option<ServerStatus>,
 }
+impl Default for Status {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Status {
     pub fn new() -> Self {
         Self {
@@ -134,10 +143,12 @@ impl Status {
             new: None,
         }
     }
+
     pub fn update(&mut self, server: ServerStatus) {
         //self.new = Some((server, Instant::now()));
         self.new = Some(server);
     }
+
     pub async fn new_status(&mut self, mrhandy: &mrhandy::MrHandy) {
         use StatusKind::*;
         let new = match (&self.current.kind, self.new.take()) {
@@ -164,6 +175,12 @@ pub struct Bridge {
     sender: Arc<RwLock<Option<MsgOutSender>>>,
     //server: Option<Server>,
 }
+impl Default for Bridge {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Bridge {
     pub fn new() -> Self {
         Bridge {
@@ -171,9 +188,11 @@ impl Bridge {
                                                  //server: None,
         }
     }
+
     fn set_sender(&self, sender: MsgOutSender) {
         *self.sender.write() = Some(sender);
     }
+
     pub fn get_sender(&self) -> Option<MsgOutSender> {
         let lock = self.sender.read();
         match &*lock {
@@ -181,6 +200,7 @@ impl Bridge {
             _ => None,
         }
     }
+
     pub fn start(state: Arc<AppState>) -> impl Future<Output = Server> {
         /*if self.server.is_some() {
             panic!("Bridge server is already running");
@@ -204,6 +224,7 @@ impl BridgeData {
     fn root(&self) -> &Root {
         &self.state.sled_db.root
     }
+
     fn bridge(&self) -> &Bridge {
         &self.state.bridge
     }
@@ -249,64 +270,56 @@ async fn start_impl(data: BridgeData) -> Server {
         .run()
 }
 
-fn handle_message_async(
-    msg_in: MsgIn,
-    data: BridgeData,
-) -> impl Future<Output = BridgeResult<MsgOut>> {
-    async move {
-        match msg_in {
-            MsgIn::PlayerConnected(player_id) => Ok(MsgOut::SendConfig {
-                player_id,
-                url: CStr::from_bytes_with_nul(data.state.config.host.overlay_urls().as_bytes())
-                    .expect("Can't fail, null byte supplied")
-                    .to_owned(),
-            }),
-            MsgIn::PlayerAuth(cr_id) => {
-                let root = data.root().clone();
-                let fut = blocking(move || {
-                    let owner =
-                        ownership::get_ownership(&root, cr_id).map_err(BridgeError::Versioned)?;
-                    if owner.is_some() {
-                        return Ok(None);
-                    }
-                    let default: [u8; 12] = loop {
-                        let random = rand::random();
-                        if random != [0u8; 12] {
-                            break random;
-                        }
-                    };
-                    let authkey = root
-                        .trunk(cr_id, None, CharTrunk::default())
-                        .get_bare_branch_or_default("authkey", &default[..], |val| val.len() == 12)
-                        .map_err(BridgeError::Versioned)?;
-                    let auth_bytes = match authkey {
-                        Some(authkey) => {
-                            let slice = authkey.as_ref();
-                            let bytes: [u8; 12] =
-                                slice.try_into().map_err(|_| BridgeError::TryInto)?;
-                            bytes
-                        }
-                        None => default,
-                    };
-                    let authkey: [u32; 3] = bytemuck::cast(auth_bytes);
-                    Ok(Some(authkey))
-                })
-                .map_ok(move |authkey| {
-                    MsgOut::SendKeyToPlayer(cr_id, authkey.unwrap_or([0u32; 3]))
-                });
-                fut.await
-            }
-            MsgIn::DiscordSendMessage { channel, text } => {
-                if let Some(mrhandy) = data.state.mrhandy.as_ref() {
-                    let _ = mrhandy.send_message(channel, text).await;
+async fn handle_message_async(msg_in: MsgIn, data: BridgeData) -> BridgeResult<MsgOut> {
+    match msg_in {
+        MsgIn::PlayerConnected(player_id) => Ok(MsgOut::SendConfig {
+            player_id,
+            url: CStr::from_bytes_with_nul(data.state.config.host.overlay_urls().as_bytes())
+                .expect("Can't fail, null byte supplied")
+                .to_owned(),
+        }),
+        MsgIn::PlayerAuth(cr_id) => {
+            let root = data.root().clone();
+            let fut = blocking(move || {
+                let owner =
+                    ownership::get_ownership(&root, cr_id).map_err(BridgeError::Versioned)?;
+                if owner.is_some() {
+                    return Ok(None);
                 }
-                Ok(MsgOut::Nop)
+                let default: [u8; 12] = loop {
+                    let random = rand::random();
+                    if random != [0u8; 12] {
+                        break random;
+                    }
+                };
+                let authkey = root
+                    .trunk(cr_id, None, CharTrunk::default())
+                    .get_bare_branch_or_default("authkey", &default[..], |val| val.len() == 12)
+                    .map_err(BridgeError::Versioned)?;
+                let auth_bytes = match authkey {
+                    Some(authkey) => {
+                        let slice = authkey.as_ref();
+                        let bytes: [u8; 12] = slice.try_into().map_err(|_| BridgeError::TryInto)?;
+                        bytes
+                    }
+                    None => default,
+                };
+                let authkey: [u32; 3] = bytemuck::cast(auth_bytes);
+                Ok(Some(authkey))
+            })
+            .map_ok(move |authkey| MsgOut::SendKeyToPlayer(cr_id, authkey.unwrap_or([0u32; 3])));
+            fut.await
+        }
+        MsgIn::DiscordSendMessage { channel, text } => {
+            if let Some(mrhandy) = data.state.mrhandy.as_ref() {
+                let _ = mrhandy.send_message(channel, text).await;
             }
-            MsgIn::Status(server) => {
-                let mut status = data.state.server_status.lock().await;
-                status.update(server);
-                Ok(MsgOut::Nop)
-            }
+            Ok(MsgOut::Nop)
+        }
+        MsgIn::Status(server) => {
+            let mut status = data.state.server_status.lock().await;
+            status.update(server);
+            Ok(MsgOut::Nop)
         }
     }
 }
@@ -327,12 +340,13 @@ fn handle(stream: TcpStream) {
 struct WebSide;
 
 impl Decoder for WebSide {
-    type Item = MsgIn;
     type Error = bincode::Error;
+    type Item = MsgIn;
 
     fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
-        use bincode::ErrorKind as BinKind;
         use std::io::ErrorKind;
+
+        use bincode::ErrorKind as BinKind;
         if src.is_empty() {
             return Ok(None);
         }
@@ -355,8 +369,9 @@ mod test {
     use super::*;
     #[test]
     fn test_partial_read() {
-        use bytes::BufMut;
         use std::io::Read;
+
+        use bytes::BufMut;
         let mut bytes = BytesMut::new();
         bytes.put_slice(b"Hello world!");
         let res: std::io::Result<_> = partial_read(&mut bytes, |buf| {

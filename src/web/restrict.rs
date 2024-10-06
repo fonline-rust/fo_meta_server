@@ -1,3 +1,5 @@
+use std::{future::Future, rc::Rc};
+
 use actix_service::{Service, Transform};
 use actix_web::{
     dev::{ServiceRequest, ServiceResponse},
@@ -8,7 +10,6 @@ use futures::{
     future::{self as fut, LocalBoxFuture},
     FutureExt,
 };
-use std::{future::Future, rc::Rc};
 
 pub enum Restrict {
     Allow,
@@ -70,16 +71,16 @@ where
     S::Error: 'static + From<InternalError<String>> + From<actix_web::Error>,
     F: 'static + Future<Output = Result<Restrict, actix_web::Error>>,
 {
-    type Response = ServiceResponse;
     type Error = S::Error;
-    type InitError = ();
-    type Transform = RestrictMiddleware<S, F>;
     type Future = fut::Ready<Result<Self::Transform, Self::InitError>>;
+    type InitError = ();
+    type Response = ServiceResponse;
+    type Transform = RestrictMiddleware<S, F>;
 
     fn new_transform(&self, service: S) -> Self::Future {
         fut::ok(RestrictMiddleware {
             service: Rc::new(service),
-            rule: self.rule.clone(),
+            rule: self.rule,
         })
     }
 }
@@ -98,15 +99,15 @@ where
     S::Error: 'static + From<InternalError<String>> + From<actix_web::Error>,
     F: 'static + Future<Output = Result<Restrict, actix_web::Error>>,
 {
-    type Response = ServiceResponse;
     type Error = S::Error;
     type Future = LocalBoxFuture<'static, Result<Self::Response, Self::Error>>;
+    type Response = ServiceResponse;
 
     actix_service::forward_ready!(service);
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
         let service = self.service.clone();
-        let rule = self.rule.clone();
+        let rule = self.rule;
         async move {
             let (http_req, payload) = req.into_parts();
             //let req = ServiceRequest::from_parts(http_req.clone(), payload);

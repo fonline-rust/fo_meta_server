@@ -1,12 +1,13 @@
-use fo_defines::CritterParam;
-use fo_defines_fo4rp::{fos, param::Param};
-use fo_save_format::ClientSaveData;
+use std::net::Ipv4Addr;
+
 /*
 #[cfg(windows)]
 use tnf_common::engine_types::critter::Critter;
 */
 use arrayvec::ArrayVec;
-use std::net::Ipv4Addr;
+use fo_defines::CritterParam;
+use fo_defines_fo4rp::{fos, param::Param};
+use fo_save_format::ClientSaveData;
 
 pub struct CritterInfo {
     pub id: u32,

@@ -1,8 +1,8 @@
+use std::{fmt::Write, fs::DirEntry, io, path::Path};
+
 use actix_files::Directory;
 use actix_web::{dev::ServiceResponse, HttpRequest, HttpResponse};
 use percent_encoding::{utf8_percent_encode, CONTROLS};
-use std::fs::DirEntry;
-use std::{fmt::Write, io, path::Path};
 use v_htmlescape::escape as escape_html_entity;
 
 // show file url as relative to static path

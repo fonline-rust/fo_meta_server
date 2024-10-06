@@ -22,9 +22,11 @@ impl ClientsDb {
         db.update_clients(&path, true).expect("Can't load clients");
         db
     }
+
     pub fn clients(&self) -> &BTreeMap<String, ClientRecord> {
         &self.clients
     }
+
     pub fn list_names(path: PathBuf) -> BTreeMap<u32, String> {
         let mut db = ClientsDb {
             ..Default::default()
@@ -35,6 +37,7 @@ impl ClientsDb {
             .map(|(name, record)| (record.info.as_ref().expect("client info").id, name.clone()))
             .collect()
     }
+
     pub fn list_ids(path: PathBuf) -> BTreeMap<u32, PathBuf> {
         let mut db = ClientsDb {
             ..Default::default()
@@ -50,6 +53,7 @@ impl ClientsDb {
             })
             .collect()
     }
+
     pub fn fix_clients(path: PathBuf, dry_ran: bool) {
         let mut db = ClientsDb {
             ..Default::default()
@@ -79,6 +83,7 @@ impl ClientsDb {
             }
         }
     }
+
     pub fn update_clients(&mut self, path: &PathBuf, load_clients_info: bool) -> io::Result<()> {
         let mut clients: BTreeMap<String, ClientRecord> = BTreeMap::new();
 
@@ -116,6 +121,7 @@ impl ClientsDb {
         self.clients = clients;
         Ok(())
     }
+
     pub fn client_info(&self, name: &str) -> io::Result<InnerCritter> {
         if let Some(record) = self.clients.get(name) {
             record.info()

@@ -1,9 +1,10 @@
+use std::{fmt::Write, ops::Bound};
+
 use super::{
     tools::ivec_to_u32,
     versioned::{get_value, new_leaf, VersionedError},
     ArcSlice,
 };
-use std::{fmt::Write, ops::Bound};
 
 #[derive(Clone)]
 pub struct Root {
@@ -13,15 +14,17 @@ impl Root {
     pub fn new(tree: sled::Tree) -> Self {
         Root { tree }
     }
+
     pub fn tree(&self) -> &sled::Tree {
         &self.tree
     }
+
     pub fn trunk<B: Bark>(&self, id: u32, max_ver: Option<u32>, bark: B) -> Trunk<B> {
         Trunk {
             id,
             versions: versions(max_ver),
             bark,
-            root: &self,
+            root: self,
         }
     }
 }
@@ -48,12 +51,14 @@ impl<'a, T: Bark> Trunk<'a, T> {
     pub fn bark(&self) -> &T {
         &self.bark
     }
+
     fn branch_key(&self, branch: &str) -> Result<String, VersionedError> {
         let mut key = String::with_capacity(32);
         write!(key, "{}/{:08X}/{}", self.bark.trunk(), self.id, branch)
             .map_err(VersionedError::WriteFmt)?;
         Ok(key)
     }
+
     fn _leaf_key(&self, branch: &str, leaf: u32) -> Result<String, VersionedError> {
         let mut key = String::with_capacity(32);
         write!(
@@ -67,9 +72,10 @@ impl<'a, T: Bark> Trunk<'a, T> {
         .map_err(VersionedError::WriteFmt)?;
         Ok(key)
     }
+
     fn check_secret(&self, input_key: Option<u32>) -> Result<bool, VersionedError> {
         let ver_secret = get_value(
-            &self.root,
+            self.root,
             self.bark.trunk(),
             self.id,
             self.bark.secret(),
@@ -93,12 +99,12 @@ impl<'a, T: Bark> Trunk<'a, T> {
             return Err(VersionedError::AccessDenied);
         }
         let (ver, data) = get_value(
-            &self.root,
+            self.root,
             self.bark.trunk(),
             self.id,
             branch,
             self.versions,
-            |buf| Ok(buf),
+            Ok,
         )?
         .ok_or(VersionedError::NotFound)?;
         Ok(Leaf {
@@ -116,7 +122,7 @@ impl<'a, T: Bark> Trunk<'a, T> {
         let secret_data = secret.to_be_bytes().to_vec();
 
         let ver = new_leaf(
-            &self.root,
+            self.root,
             self.bark.trunk(),
             self.id,
             self.bark.counter(),

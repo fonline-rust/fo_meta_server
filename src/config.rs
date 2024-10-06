@@ -1,8 +1,7 @@
+use std::{collections::BTreeMap, net::SocketAddr, path::PathBuf};
+
 use actix_web::cookie::Key as CookieKey;
 use serde::Deserialize;
-use std::collections::BTreeMap;
-use std::net::SocketAddr;
-use std::path::PathBuf;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Cert {
@@ -17,7 +16,7 @@ impl Cert {
         let certs = rustls_pemfile::certs(&mut cert.as_slice())
             .expect("Parsed full-chain cert")
             .into_iter()
-            .map(|cert| rustls::Certificate(cert))
+            .map(rustls::Certificate)
             .collect();
         let key = rustls_pemfile::pkcs8_private_keys(&mut key.as_slice())
             .ok()
@@ -50,6 +49,7 @@ impl Url {
             None => format!("{}://{}{}", protocol, self.domain, url),
         }
     }
+
     pub fn domain_port(&self) -> String {
         match self.port {
             Some(port) => format!("{}:{}", self.domain, port),
@@ -76,6 +76,7 @@ impl Host {
         };
         self.web.url(protocol, url)
     }
+
     pub fn web_port(&self) -> u16 {
         match (&self.web.port, &self.web_tls) {
             (&Some(port), _) => port,
@@ -83,9 +84,11 @@ impl Host {
             (None, None) => 80,
         }
     }
+
     pub fn files_url(&self, url: &str) -> String {
         self.files.url("http", url)
     }
+
     pub fn files_port(&self) -> u16 {
         self.files.port.unwrap_or(80)
     }
@@ -215,6 +218,7 @@ impl Session {
         }
         Ok(())
     }
+
     pub fn cookie_key(&self) -> CookieKey {
         match self
             .cookie_key
@@ -227,8 +231,8 @@ impl Session {
                 }
             })
             .and_then(|bytes| match bytes.len() {
-                32..=63 => Some(CookieKey::derive_from(&*bytes)),
-                64.. => Some(CookieKey::from(&*bytes)),
+                32..=63 => Some(CookieKey::derive_from(bytes)),
+                64.. => Some(CookieKey::from(bytes)),
                 _ => None,
             }) {
             Some(key) => key,

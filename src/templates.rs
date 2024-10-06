@@ -1,12 +1,13 @@
-use crate::config::Host;
 use custom_error::custom_error;
 use lazy_static::lazy_static;
 use serde::Serialize;
 use tera::Tera;
 
-const TEMPLATES_PATH: &'static str = "templates/**/*";
-const CSS_PATH: &'static str = "static/charsheet.css";
-const SCSS_PATH: &'static str = "styles/charsheet.scss";
+use crate::config::Host;
+
+const TEMPLATES_PATH: &str = "templates/**/*";
+const CSS_PATH: &str = "static/charsheet.css";
+const SCSS_PATH: &str = "styles/charsheet.scss";
 
 struct Templates {
     tera: Tera,
@@ -28,6 +29,7 @@ impl Templates {
         templates.write_css().unwrap();
         templates
     }
+
     #[cfg(feature = "live_reload")]
     fn remake(&mut self) -> Result<(), TemplatesError> {
         self.css = Self::compile_css()?;
@@ -35,9 +37,11 @@ impl Templates {
         self.write_css()?;
         Ok(())
     }
+
     fn write_css(&self) -> std::io::Result<()> {
         std::fs::write(CSS_PATH, &self.css)
     }
+
     fn compile_css() -> Result<String, TemplatesError> {
         let vec = rsass::compile_scss_path(SCSS_PATH.as_ref(), Default::default())
             .map_err(|err| TemplatesError::Rsass { inner: err })?;
