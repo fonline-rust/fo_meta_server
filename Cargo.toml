@@ -73,9 +73,10 @@ log = "0.4"
 parking_lot.workspace = true
 rand = "0.8"
 sled = "0.34.0"
-oauth2 = { version = "4.2" }
-http1 = { version = "0.2", package = "http" }
+oauth2.workspace = true
+http.workspace = true
 reqwest.workspace = true
+http-body-util.workspace = true
 
 #ring = "= 0.16.9"
 #libc = "= 0.2.66"
@@ -83,12 +84,15 @@ reqwest.workspace = true
 
 [workspace.dependencies]
 serenity = { git = "https://github.com/qthree/serenity.git", branch = "ws-proxy", default-features = false, features = ["model", "gateway"]}
-reqwest = { version = "0.12", default-features = false }
+oauth2 = { git = "https://github.com/ramosbugs/oauth2-rs.git" }
+reqwest = { version = "0.12", default-features = false, features = ["socks"]}
 parking_lot = "0.12"
 futures = "0.3"
 tokio = "1"
 let_clone = "0.1"
 small-fixed-array = "0.4"
+http = "1"
+http-body-util = "0.1"
 
 [workspace]
 members = [

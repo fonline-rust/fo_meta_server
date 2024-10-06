@@ -8,6 +8,7 @@ fn main() -> std::io::Result<()> {
         .filter(Some("actix_web"), log::LevelFilter::Info)
         .filter(Some("actix_server"), log::LevelFilter::Info)
         //.filter(Some("serenity"), log::LevelFilter::Info)
+        .parse_default_env()
         .init();
     let config = config::setup().expect("config.toml file");
     //println!("{:?}", config);

@@ -21,7 +21,7 @@ pub async fn auth(
             .as_ref()
             .expect("OAuth config")
             .exchange_code(AuthorizationCode::new(params.code.clone()))
-            .request_async(oauth_reqwest::async_http_client)
+            .request_async(&oauth_reqwest::async_http_client)
             .await
             .map_err(internal_error),
         Err(err) => Err(err.into()),
@@ -84,47 +84,29 @@ struct DiscordUser {
 }
 
 mod oauth_reqwest {
+    use std::convert::TryInto;
+
     use futures::TryFutureExt;
     use oauth2::{HttpRequest, HttpResponse};
 
     pub async fn async_http_client(request: HttpRequest) -> Result<HttpResponse, reqwest::Error> {
-        assert_eq!(request.method.as_str(), "POST");
+        assert_eq!(request.method().as_str(), "POST");
 
         let client = reqwest::Client::builder()
             // Following redirects opens the client up to SSRF vulnerabilities.
             .redirect(reqwest::redirect::Policy::none())
             .build()?;
 
-        let mut request_builder = client
-            .request(reqwest::Method::POST, request.url.as_str())
-            .body(request.body);
-        for (name, value) in &request.headers {
-            request_builder = request_builder.header(name.as_str(), value.as_bytes());
-        }
-        let request = request_builder.build()?;
+        let response = client.execute(request.try_into()?).await?;
 
-        let response = client.execute(request).await?;
+        let response: http::Response<reqwest::Body> = response.into();
+        let (parts, body) = response.into_parts();
+        let buf = http_body_util::BodyExt::collect(body)
+            .await
+            .map(|buf| buf.aggregate())?;
+        let body = bytes::buf::IntoIter::new(buf).collect();
 
-        let status_code =
-            http1::StatusCode::from_u16(response.status().as_u16()).expect("Status code");
-        let headers = response
-            .headers()
-            .iter()
-            .filter_map(|(k, v)| {
-                use std::str::FromStr;
-                Some((
-                    http1::header::HeaderName::from_str(k.as_str()).ok()?,
-                    http1::HeaderValue::from_bytes(v.as_bytes()).ok()?,
-                ))
-            })
-            .collect();
-        let chunks = response.bytes().await?;
-
-        Ok(HttpResponse {
-            status_code,
-            headers,
-            body: chunks.to_vec(),
-        })
+        Ok(HttpResponse::from_parts(parts, body))
     }
     pub async fn get(
         client: &reqwest::Client,

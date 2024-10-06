@@ -15,6 +15,7 @@ use futures::{
     future::{FutureExt, TryFutureExt},
     Future,
 };
+use oauth2::{basic, EndpointNotSet, EndpointSet};
 use tokio::sync::Mutex;
 
 use self::restrict::restrict;
@@ -122,7 +123,7 @@ fn _info(
 }
 */
 pub struct AppState {
-    oauth: Option<oauth2::basic::BasicClient>,
+    oauth: Option<Oauth2Client>,
     pub(crate) config: config::Config,
     pub(crate) mrhandy: Option<mrhandy::MrHandy>,
     pub(crate) sled_db: SledDb,
@@ -226,19 +227,31 @@ impl AppState {
     }
 }
 
+pub type Oauth2Client = oauth2::Client<
+    basic::BasicErrorResponse,
+    basic::BasicTokenResponse,
+    basic::BasicTokenIntrospectionResponse,
+    oauth2::StandardRevocableToken,
+    basic::BasicRevocationErrorResponse,
+    EndpointSet,
+    EndpointNotSet,
+    EndpointNotSet,
+    EndpointNotSet,
+    EndpointSet,
+>;
+
 pub fn oauth2_client(
     config: &config::OAuth,
     redirect: String,
-) -> Result<oauth2::basic::BasicClient, Box<dyn std::error::Error>> {
-    use oauth2::{basic::BasicClient, AuthUrl, ClientId, ClientSecret, RedirectUrl, TokenUrl};
-    let client = BasicClient::new(
-        ClientId::new(config.client_id.clone()),
-        Some(ClientSecret::new(config.secret.clone())),
-        AuthUrl::new("https://discordapp.com/api/oauth2/authorize".to_string())?,
-        Some(TokenUrl::new(
-            "https://discordapp.com/api/oauth2/token".to_string(),
-        )?),
-    )
+) -> Result<Oauth2Client, Box<dyn std::error::Error>> {
+    use oauth2::{AuthUrl, ClientId, ClientSecret, RedirectUrl, TokenUrl};
+    let client = oauth2::Client::new(
+        ClientId::new(config.client_id.clone())
+    ).set_client_secret(ClientSecret::new(config.secret.clone()))
+    .set_auth_uri(AuthUrl::new("https://discordapp.com/api/oauth2/authorize".to_string())?)
+    .set_token_uri(TokenUrl::new(
+        "https://discordapp.com/api/oauth2/token".to_string(),
+    )?)
     // Set the URL the user will be redirected to after the authorization process.
     .set_redirect_uri(RedirectUrl::new(redirect)?);
     Ok(client)
