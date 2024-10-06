@@ -1,6 +1,7 @@
 use super::*;
 use actix_session::SessionExt;
 use actix_web::web::Data;
+use mrhandy::FixedString;
 use std::sync::Arc;
 
 pub async fn get_ranks(data: Arc<AppState>, user_id: u64) -> Result<Vec<Rank>, &'static str> {
@@ -37,8 +38,8 @@ pub async fn get_user_record(data: &AppState, user_id: u64) -> Result<UserRecord
 }
 
 pub struct UserRecord {
-    pub name: String,
-    pub nick: Option<String>,
+    pub name: FixedString,
+    pub nick: Option<FixedString>,
     pub ranks: Vec<Rank>,
 }
 

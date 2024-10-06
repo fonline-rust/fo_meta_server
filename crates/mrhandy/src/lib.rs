@@ -3,11 +3,13 @@ pub use serenity::{
     model::guild::{Guild, Role},
 };
 use serenity::{
-    all::{ActivityData, GuildId}, cache::Cache, client::Client, gateway::ShardManager, http::Http,
-    model::prelude::{UserId, Member, GatewayIntents},
+    all::{ActivityData, GuildId}, cache::Cache, gateway::ShardManager, http::Http,
+    model::prelude::{GatewayIntents, Member}, Client,
 };
 use std::{collections::HashMap, sync::Arc};
 use let_clone::let_clone;
+
+pub type FixedString = small_fixed_array::FixedString<u8>;
 
 #[derive(Clone)]
 pub struct MrHandy {
@@ -41,7 +43,10 @@ impl MrHandy {
     pub async fn clone_members(&self) -> Option<Members> {
         self.with_guild(move |guild| {
             guild.map(|guild| Members {
-                members: guild.members.clone(),
+                members: guild.members.iter().map(|member| (member.user.id.into(), MemberInfo{
+                    nick: member.nick.clone(),
+                    user_name: member.user.name.clone(),
+                })).collect(),
             })
         })
         .await
@@ -53,7 +58,7 @@ impl MrHandy {
                 let guild = guild.ok_or(Error::NoMainGuild)?;
                 let channel = guild
                     .channels
-                    .values()
+                    .iter()
                     .find(|ch| ch.name == channel)
                     .ok_or_else(|| Error::ChannelNotFound(channel))?;
                 Ok(channel.id)
@@ -75,14 +80,14 @@ impl MrHandy {
             .collect()
     }
 
-    pub fn get_name_nick(member: &Member) -> (String, Option<String>) {
+    pub fn get_name_nick(member: &Member) -> (FixedString, Option<FixedString>) {
         let user = &member.user;
         (user.name.clone(), member.nick.clone())
     }
     pub async fn edit_nickname(&self, new_nickname: Option<String>) -> Result<(), serenity::Error> {
         //let shards = self.shard_manager.lock().await;
         self.http
-            .edit_nickname(self.main_guild_id, new_nickname.as_deref(), None)
+            .edit_nickname(self.main_guild_id, &new_nickname, None)
             .await
         //TODO: return local Error
         //.map_err(Error::Serenity)
@@ -109,9 +114,8 @@ impl MrHandy {
         runners
             .values()
             .inspect(|runner| {
-                runner
-                    .as_ref()
-                    .set_presence(Some(activity.clone()), status.clone());
+                runner.runner_tx
+                    .set_presence(Some(activity.clone()), status);
             })
             .count()
             > 0
@@ -137,12 +141,17 @@ pub enum Error {
     Serenity(serenity::Error),
 }
 
+pub struct MemberInfo {
+    pub nick: Option<FixedString>,
+    pub user_name: FixedString,
+}
+
 pub struct Members {
-    members: HashMap<UserId, Member>,
+    members: HashMap<u64, MemberInfo>,
 }
 impl Members {
-    pub fn get(&self, user_id: u64) -> Option<&Member> {
-        self.members.get(&user_id.into())
+    pub fn get(&self, user_id: u64) -> Option<&MemberInfo> {
+        self.members.get(&user_id)
     }
 }
 

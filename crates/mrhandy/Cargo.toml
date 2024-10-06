@@ -16,3 +16,4 @@ parking_lot.workspace = true
 futures.workspace = true
 tokio.workspace = true
 let_clone.workspace = true
+small-fixed-array.workspace = true

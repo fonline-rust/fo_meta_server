@@ -70,7 +70,7 @@ fn get_name<'a>(
         Some(member) => member,
         None => return Ok(OwnerInfo::Id(owner)),
     };
-    let name = member.user.name.as_str();
+    let name = member.user_name.as_str();
     Ok(match member.nick.as_ref() {
         None => OwnerInfo::Name(name),
         Some(nick) => OwnerInfo::NickName(name, nick.as_str()),
