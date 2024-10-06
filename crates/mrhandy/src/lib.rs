@@ -3,20 +3,17 @@ pub use serenity::{
     model::guild::{Guild, Role},
 };
 use serenity::{
-    client::{bridge::gateway::ShardManager, Client},
-    framework::standard::{
+    all::{standard::Configuration, ActivityData, CreateMessage, GuildId}, cache::Cache, client::Client, framework::standard::{
         macros::{command, group, hook},
         CommandError, CommandResult, DispatchError, StandardFramework,
-    },
-    model::prelude::{Message, UserId},
-    prelude::{Context, EventHandler, Mutex, TypeMapKey},
-    CacheAndHttp,
+    }, gateway::ShardManager, http::Http, model::prelude::{Message, UserId}, prelude::{Context, EventHandler, Mutex, TypeMapKey}
 };
 use serenity::{
     model::{guild::Member, prelude::Channel},
     prelude::GatewayIntents,
 };
 use std::{collections::HashMap, sync::Arc};
+use let_clone::let_clone;
 
 #[group]
 #[commands(private)]
@@ -26,16 +23,12 @@ struct Handler;
 
 impl EventHandler for Handler {}
 
-struct MainGuild;
-impl TypeMapKey for MainGuild {
-    type Value = u64;
-}
-
 #[derive(Clone)]
 pub struct MrHandy {
-    pub cache_and_http: Arc<CacheAndHttp>,
-    pub shard_manager: Arc<Mutex<ShardManager>>,
-    pub main_guild_id: u64,
+    pub cache: Arc<Cache>,
+    pub http: Arc<Http>,
+    pub shard_manager: Arc<ShardManager>,
+    pub main_guild_id: GuildId,
 }
 
 impl MrHandy {
@@ -55,13 +48,8 @@ impl MrHandy {
     }
 
     pub async fn with_guild<O, F: FnOnce(Option<&Guild>) -> O>(&self, fun: F) -> O {
-        let cache = &self.cache_and_http.cache;
-        let mut fun = Some(fun);
-        cache
-            .guild_field(self.main_guild_id, |guild| {
-                (fun.take().unwrap())(Some(guild))
-            })
-            .unwrap_or_else(|| (fun.take().unwrap())(None))
+        let res = self.cache.guild(self.main_guild_id);
+        fun(res.as_deref())
     }
 
     pub async fn clone_members(&self) -> Option<Members> {
@@ -80,17 +68,13 @@ impl MrHandy {
                 let channel = guild
                     .channels
                     .values()
-                    .filter_map(|ch| match ch {
-                        Channel::Guild(ch) => Some(ch),
-                        _ => None,
-                    })
                     .find(|ch| &ch.name == &channel)
                     .ok_or_else(|| Error::ChannelNotFound(channel))?;
                 Ok(channel.id)
             })
             .await?;
         let _ = channel_id
-            .say(&self.cache_and_http.http, text)
+            .say(&self.http, text)
             .await
             .map_err(Error::Serenity)?;
         Ok(())
@@ -111,21 +95,18 @@ impl MrHandy {
     }
     pub async fn edit_nickname(&self, new_nickname: Option<String>) -> Result<(), serenity::Error> {
         //let shards = self.shard_manager.lock().await;
-        self.cache_and_http
-            .http
-            .edit_nickname(self.main_guild_id, new_nickname.as_deref())
+        self.http
+            .edit_nickname(self.main_guild_id, new_nickname.as_deref(), None)
             .await
         //TODO: return local Error
         //.map_err(Error::Serenity)
     }
     pub async fn set_activity(&self, condition: Condition) -> bool {
-        use serenity::model::{gateway::Activity, user::OnlineStatus};
+        use serenity::model::user::OnlineStatus;
 
-        let activity = Activity::playing(condition.name.clone());
+        let activity = ActivityData::custom(condition.name);
 
-        //TODO: Discord API doesn't support setting of custom status, fix when it's supported
-        //activity.kind = ActivityType::Custom;
-        //activity.state = Some(condition.name);
+        //TODO: Discord API doesn't support setting of custom status emoji, fix when it's supported
         //activity.emoji = Some(ActivityEmoji {
         //    name: condition.emoji,
         //    id: None,
@@ -138,8 +119,7 @@ impl MrHandy {
             ConditionColor::Red => OnlineStatus::DoNotDisturb,
         };
 
-        let shard_manager = self.shard_manager.lock().await;
-        let runners = shard_manager.runners.lock().await;
+        let runners = self.shard_manager.runners.lock().await;
         runners
             .values()
             .inspect(|runner| {
@@ -199,23 +179,24 @@ async fn after_hook(_: &Context, _: &Message, cmd_name: &str, error: Result<(), 
 
 pub async fn init(token: &str, main_guild_id: u64) -> (MrHandy, Client) {
     let framework = StandardFramework::new()
-        .configure(|c| c.prefix("~")) // set the bot's prefix to "~"
+        //.configure(|c| c.prefix("~")) // set the bot's prefix to "~"
         .on_dispatch_error(dispatch_error_hook)
         .group(&GENERAL_GROUP)
         .after(after_hook);
+    framework
+        .configure(Configuration::new().prefix("~"));
     let client = Client::builder(token, GatewayIntents::all())
         .event_handler(Handler)
         .framework(framework)
         .await
         .expect("Error creating client");
-    let cache_and_http = Arc::clone(&client.cache_and_http);
-    let shard_manager = Arc::clone(&client.shard_manager);
-
+    let_clone!(client.cache, client.http, client.shard_manager);
     (
         MrHandy {
-            cache_and_http,
+            cache,
+            http,
             shard_manager,
-            main_guild_id,
+            main_guild_id: GuildId::new(main_guild_id),
         },
         client,
     )
@@ -223,6 +204,7 @@ pub async fn init(token: &str, main_guild_id: u64) -> (MrHandy, Client) {
 
 #[command]
 async fn private(ctx: &Context, msg: &Message) -> CommandResult {
-    msg.author.dm(ctx, |msg| msg.content(":eyes:")).await?;
+    let builder = CreateMessage::new().content(":eyes:");
+    msg.author.dm(ctx, builder).await?;
     Ok(())
 }

@@ -10,10 +10,9 @@ tls-rust = ["serenity/default"]
 tls-native = ["serenity/default_native_tls"]
 
 [dependencies]
-serenity = { version = "0.11", default-features = false, features = ["model"]}
-#serenity = { path = "D:\\rust\\serenity", features = ["model"]}
-#reqwest = { version = "= 0.10.2", default-features = false }
-reqwest = { version = "0.11", default-features = false }
-parking_lot = "0.12"
-futures = "0.3"
-tokio = "1"
+serenity.workspace = true
+reqwest.workspace = true
+parking_lot.workspace = true
+futures.workspace = true
+tokio.workspace = true
+let_clone.workspace = true
